@@ -5,7 +5,6 @@ const useEmployeeUploader = () => {
     const [fetchedData, setFetchedData] = useState();
 
     useEffect(() => {
-        console.log("test " + JSON.stringify(fetchedData))
     }, [fetchedData]);
 
     const handleFileUpload = (event) => {
@@ -19,11 +18,13 @@ const useEmployeeUploader = () => {
             encoding: "utf8",
             complete: handleParsedFileSuccess,
             error: handleParsedFileFailure,
-          });
+        });
     };
 
     const handleParsedFileSuccess = ({ data }) => {
-        let projectPairs;
+        let projectPairs = [];
+
+        const currentTimestamp = Date.now();
 
         // Iterate through projects from data set and determine possible pairs for each one
         data.forEach(record => {
@@ -31,8 +32,8 @@ const useEmployeeUploader = () => {
             const employeeInfo = {
                 employeeId: record[0],
                 projectId: record[1],
-                startDate: record[2],
-                endDate: record[3],
+                startDate: record[2] === "NULL" ? currentTimestamp : new Date(record[2]).getTime(),
+                endDate: record[3] === "NULL" ? currentTimestamp : new Date(record[3]).getTime(),
             };
 
 
@@ -40,43 +41,64 @@ const useEmployeeUploader = () => {
                 const innerEmployeeInfo = {
                     employeeId: innerRecord[0],
                     projectId: innerRecord[1],
-                    startDate: innerRecord[2],
-                    endDate: innerRecord[3],
+                    startDate: innerRecord[2] === "NULL" ? currentTimestamp : new Date(innerRecord[2]).getTime(),
+                    endDate: innerRecord[3] === "NULL" ? currentTimestamp : new Date(innerRecord[3]).getTime(),
                 };
 
+                if (innerEmployeeInfo.employeeId === employeeInfo.employeeId) return;
+
                 if (employeeInfo.projectId === innerEmployeeInfo.projectId) {
+                    let overlapPeriodStart;
+                    let overlapPeriodEnd;
+
                     // Consider only the pairs that have overlapping periods of time
                     if (employeeInfo.startDate < innerEmployeeInfo.endDate && innerEmployeeInfo.startDate < employeeInfo.endDate) {
-                            const periodStart = employeeInfo.startDate >= innerEmployeeInfo.startDate ? employeeInfo.startDate : innerEmployeeInfo.startDate;
-                            const periodEnd = employeeInfo.endDate <= innerEmployeeInfo.endDate ? employeeInfo.endDate : innerEmployeeInfo.endDate;
+                        overlapPeriodStart = employeeInfo.startDate >= innerEmployeeInfo.startDate ? employeeInfo.startDate : innerEmployeeInfo.startDate;
+                        overlapPeriodEnd = employeeInfo.endDate <= innerEmployeeInfo.endDate ? employeeInfo.endDate : innerEmployeeInfo.endDate;
+                    } else if (employeeInfo.endDate === currentTimestamp || innerEmployeeInfo.endDate === currentTimestamp) {
+                        overlapPeriodStart = employeeInfo.startDate >= innerEmployeeInfo.startDate ? employeeInfo.startDate : innerEmployeeInfo.startDate;
+                        overlapPeriodEnd = currentTimestamp - (employeeInfo.endDate === currentTimestamp ? innerEmployeeInfo.endDate : employeeInfo.endDate);
+                    }
 
+                    if (typeof overlapPeriodStart !== "undefined" && typeof overlapPeriodEnd !== "undefined") {
+                        /* Avoid dublicate records
+                        If [143, 218] is added for projectID 10 then we shouldn't add [218,143] for projectID 10 */
+
+                        // TO DO: Fix clause
+                        if (typeof projectPairs.find(pair => (pair.employeeOne === employeeInfo.employeeId || pair.employeeOne === innerEmployeeInfo.employeeId)
+                            && pair.projectId === employeeInfo.projectId) === "undefined")
                             projectPairs.push({
                                 employeeOne: employeeInfo.employeeId,
                                 employeeTwo: innerEmployeeInfo.employeeId,
-                                period: periodEnd - periodStart,
+                                period: overlapPeriodStart - overlapPeriodEnd,
+                                projectId: employeeInfo.projectId,
                             });
-                    } else if (employeeInfo.endDate === "NULL" || employeeInfo.endDate === null) {
-                        const periodStart = employeeInfo.startDate >= innerEmployeeInfo.startDate ? employeeInfo.startDate : innerEmployeeInfo.startDate;
-                        const periodEnd = Date.now() - (employeeInfo.endDate === "NULL" ? innerEmployeeInfo.endDate : employeeInfo.endDate);
-                        
-                        projectPairs.push({
-                            employeeOne: employeeInfo.employeeId,
-                            employeeTwo: innerEmployeeInfo.employeeId,
-                            period: periodEnd - periodStart,
-                        })
                     }
                 }
-
-                
             });
-
         });
-        
 
-        // Every project now has all pairs that have formed
+        // Every project now has all pairs that have formed for it
+        // Compare every pair for every project with other projects and if the pair exists in another project as well sum up their time together to find out the most time
+        const pairsTotalTime = projectPairs.map(({ employeeOne, employeeTwo }) => ({ employeeOne, employeeTwo, totalTime: 0 }));
 
-        // Compare every pair for every project with other projects and if the pair exists in another project as well sum up their time together
-        setFetchedData(data);
+        projectPairs.forEach((projectPair) => {
+            let pairTotalTime = pairsTotalTime.find((innerPair) => projectPair.employeeOne === innerPair.employeeOne && projectPair.employeeTwo === innerPair.employeeTwo);
+
+            if (typeof pairTotalTime !== "undefined") {
+                pairTotalTime.totalTime += projectPair.period;
+                pairsTotalTime[pairsTotalTime.indexOf(pairTotalTime)] = pairTotalTime;
+            }
+        });
+
+        pairsTotalTime.sort((pairOne, pairTwo) => pairTwo.totalTime - pairOne.totalTime);
+
+       
+        const longestPair = pairsTotalTime[0];
+        setFetchedData({
+            longestPair: longestPair,
+            projectInfo: projectPairs.filter((pair) => pair.employeeOne === longestPair.employeeOne && pair.employeeTwo === longestPair.employeeTwo)
+        });
     };
 
     const handleParsedFileFailure = (err) => {
