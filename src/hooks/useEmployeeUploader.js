@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Papa from 'papaparse';
 import { DateTime } from "luxon";
 
@@ -6,13 +6,10 @@ const useEmployeeUploader = (inputDataFormat) => {
     const [fetchedData, setFetchedData] = useState({
         initialLoad: true,
         pairFound: false,
-        errorOccured: false,
-        longestPair: null,
-        projectsInfo: null,
+        errorOccured: false, // error during file upload
+        longestPair: null, // {employeeOne, employeeTwo, totalAmount}
+        projectsInfo: null, // [{employeeOne, employeeTwo, period, projectId}, ...] store all pairs along with the project they worked for and the period
     });
-
-    useEffect(() => {
-    }, [fetchedData]);
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -66,9 +63,8 @@ const useEmployeeUploader = (inputDataFormat) => {
                     if (typeof overlapPeriodStart !== "undefined" && typeof overlapPeriodEnd !== "undefined") {
                         /* Avoid dublicate records
                         If [143, 218] is added for projectID 10 then we shouldn't add [218,143] for projectID 10 */
-
-                        // TO DO: Fix clause
-                        if (typeof projectPairs.find(pair => (pair.employeeOne === employeeInfo.employeeId || pair.employeeOne === comparableEmployeeInfo.employeeId)
+                        if (typeof projectPairs.find(pair => ((pair.employeeOne === employeeInfo.employeeId && pair.employeeTwo === employeeInfo.employeeId)
+                            || (pair.employeeOne === comparableEmployeeInfo.employeeId && pair.employeeTwo === comparableEmployeeInfo.employeeId))
                             && pair.projectId === employeeInfo.projectId) === "undefined")
                             projectPairs.push({
                                 employeeOne: employeeInfo.employeeId,
@@ -95,7 +91,8 @@ const useEmployeeUploader = (inputDataFormat) => {
         const pairsTotalTime = projectPairs.map(({ employeeOne, employeeTwo }) => ({ employeeOne, employeeTwo, totalTime: 0 }));
 
         projectPairs.forEach((projectPair) => {
-            let pairTotalTime = pairsTotalTime.find((innerPair) => projectPair.employeeOne === innerPair.employeeOne && projectPair.employeeTwo === innerPair.employeeTwo);
+            let pairTotalTime = pairsTotalTime.find((comparablePair) => (projectPair.employeeOne === comparablePair.employeeOne && projectPair.employeeTwo === comparablePair.employeeTwo)
+                || ((projectPair.employeeOne === comparablePair.employeeTwo && projectPair.employeeTwo === comparablePair.employeeOne)));
 
             if (typeof pairTotalTime !== "undefined") {
                 pairTotalTime.totalTime += projectPair.period;
@@ -106,10 +103,11 @@ const useEmployeeUploader = (inputDataFormat) => {
         pairsTotalTime.sort((pairOne, pairTwo) => pairTwo.totalTime - pairOne.totalTime);
 
         const longestPair = pairsTotalTime[0];
-        longestPair.totalTime = longestPair.totalTime / (24 * 60 * 60 * 1000); // convert previously stored time in miliseconds to days
+        longestPair.totalTime = Math.floor(longestPair.totalTime / (24 * 60 * 60 * 1000)); // convert previously stored time in miliseconds to days
 
-        const longestPairProjectsInfo = projectPairs.filter((pair) => pair.employeeOne === longestPair.employeeOne && pair.employeeTwo === longestPair.employeeTwo);
-        longestPairProjectsInfo.forEach((projectInfo) => projectInfo.period = projectInfo.period / (24 * 60 * 60 * 1000));
+        const longestPairProjectsInfo = projectPairs.filter((pair) => (pair.employeeOne === longestPair.employeeOne && pair.employeeTwo === longestPair.employeeTwo)
+            || (pair.employeeOne === longestPair.employeeTwo && pair.employeeTwo === longestPair.employeeOne));
+        longestPairProjectsInfo.forEach((projectInfo) => projectInfo.period = Math.floor(projectInfo.period / (24 * 60 * 60 * 1000)));
 
         setFetchedData({
             initialLoad: false,
