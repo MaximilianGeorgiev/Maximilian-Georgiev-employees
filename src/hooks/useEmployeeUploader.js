@@ -97,7 +97,7 @@ const useEmployeeUploader = () => {
         const longestPair = pairsTotalTime[0];
         setFetchedData({
             longestPair: longestPair,
-            projectInfo: projectPairs.filter((pair) => pair.employeeOne === longestPair.employeeOne && pair.employeeTwo === longestPair.employeeTwo)
+            projectsInfo: projectPairs.filter((pair) => pair.employeeOne === longestPair.employeeOne && pair.employeeTwo === longestPair.employeeTwo)
         });
     };
 

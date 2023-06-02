@@ -1,12 +1,16 @@
-import useEmployeeUploader from "../hooks/useEmployeeUploader"
-
-const EmployeeUploader = () => {
-    const { handleFileUpload } = useEmployeeUploader();
-
+import Button from '@mui/material/Button';
+import UploadIcon from '@mui/icons-material/Upload';
+const EmployeeUploader = ({ handleFileUpload }) => {
     return (
-        <input type="file" onChange={handleFileUpload} />
+        <>       <Button
+            variant="contained"
+            component="label"
+            fullWidth
+            endIcon={<UploadIcon />}
+        >Upload CSV File
+            <input hidden type="file" onChange={handleFileUpload} />
+        </Button></>
     );
 };
-
 
 export default EmployeeUploader;
