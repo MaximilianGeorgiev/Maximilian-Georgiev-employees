@@ -31,7 +31,7 @@ const useEmployeeUploader = (inputDataFormat) => {
     const handleParsedFileSuccess = ({ data }) => {
         let projectPairs = [];
 
-        const currentTimestamp = Date.now();
+        const currentTimestamp = DateTime.now();
 
         // Iterate through projects from data set and determine possible pairs for each one
         data.forEach(record => {
@@ -39,28 +39,28 @@ const useEmployeeUploader = (inputDataFormat) => {
             const employeeInfo = {
                 employeeId: record[0],
                 projectId: record[1],
-                startDate: record[2] === "NULL" ? currentTimestamp : new Date(record[2]).getTime(),
-                endDate: record[3] === "NULL" ? currentTimestamp : new Date(record[3]).getTime(),
+                startDate: record[2] === "NULL" ? currentTimestamp : DateTime.fromFormat(record[2], inputDataFormat),
+                endDate: record[3] === "NULL" ? currentTimestamp : DateTime.fromFormat(record[3], inputDataFormat),
             };
 
-            data.forEach((innerRecord) => {
-                const innerEmployeeInfo = {
-                    employeeId: innerRecord[0],
-                    projectId: innerRecord[1],
-                    startDate: innerRecord[2] === "NULL" ? currentTimestamp : new Date(innerRecord[2]).getTime(),
-                    endDate: innerRecord[3] === "NULL" ? currentTimestamp : new Date(innerRecord[3]).getTime(),
+            data.forEach((comparableRecord) => {
+                const comparableEmployeeInfo = {
+                    employeeId: comparableRecord[0],
+                    projectId: comparableRecord[1],
+                    startDate: comparableRecord[2] === "NULL" ? currentTimestamp : DateTime.fromFormat(comparableRecord[2], inputDataFormat),
+                    endDate: comparableRecord[3] === "NULL" ? currentTimestamp : DateTime.fromFormat(comparableRecord[3], inputDataFormat)
                 };
 
-                if (innerEmployeeInfo.employeeId === employeeInfo.employeeId) return;
+                if (comparableEmployeeInfo.employeeId === employeeInfo.employeeId) return;
 
-                if (employeeInfo.projectId === innerEmployeeInfo.projectId) {
+                if (employeeInfo.projectId === comparableEmployeeInfo.projectId) {
                     let overlapPeriodStart;
                     let overlapPeriodEnd;
 
                     // Consider only the pairs that have overlapping periods of time
-                    if (employeeInfo.startDate <= innerEmployeeInfo.endDate && employeeInfo.endDate >= innerEmployeeInfo.endDate) {
-                        overlapPeriodStart = Math.max(employeeInfo.startDate, innerEmployeeInfo.startDate);
-                        overlapPeriodEnd = Math.min(employeeInfo.endDate, innerEmployeeInfo.endDate);
+                    if (employeeInfo.startDate <= comparableEmployeeInfo.endDate && employeeInfo.endDate >= comparableEmployeeInfo.endDate) {
+                        overlapPeriodStart = Math.max(employeeInfo.startDate, comparableEmployeeInfo.startDate);
+                        overlapPeriodEnd = Math.min(employeeInfo.endDate, comparableEmployeeInfo.endDate);
                     }
 
                     if (typeof overlapPeriodStart !== "undefined" && typeof overlapPeriodEnd !== "undefined") {
@@ -68,11 +68,11 @@ const useEmployeeUploader = (inputDataFormat) => {
                         If [143, 218] is added for projectID 10 then we shouldn't add [218,143] for projectID 10 */
 
                         // TO DO: Fix clause
-                        if (typeof projectPairs.find(pair => (pair.employeeOne === employeeInfo.employeeId || pair.employeeOne === innerEmployeeInfo.employeeId)
+                        if (typeof projectPairs.find(pair => (pair.employeeOne === employeeInfo.employeeId || pair.employeeOne === comparableEmployeeInfo.employeeId)
                             && pair.projectId === employeeInfo.projectId) === "undefined")
                             projectPairs.push({
                                 employeeOne: employeeInfo.employeeId,
-                                employeeTwo: innerEmployeeInfo.employeeId,
+                                employeeTwo: comparableEmployeeInfo.employeeId,
                                 period: overlapPeriodEnd - overlapPeriodStart,
                                 projectId: employeeInfo.projectId,
                             });
