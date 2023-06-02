@@ -7,7 +7,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 const ProjectsInfo = ({ fetchedData }) => {
-    return (
+    return (fetchedData?.pairFound && 
         <TableContainer>
             <Table>
                 <TableHead>
